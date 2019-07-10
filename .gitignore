@@ -2,3 +2,4 @@ results/
 samples/
 data/
 deploy.sh
+.DS_Store
