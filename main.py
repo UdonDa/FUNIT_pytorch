@@ -60,9 +60,12 @@ if __name__ == '__main__':
     parser.add_argument('--d_conv_dim', type=int, default=64, help='number of conv filters in the first layer of D')
     parser.add_argument('--g_repeat_num', type=int, default=6, help='number of residual blocks in G')
     parser.add_argument('--d_repeat_num', type=int, default=6, help='number of strided conv layers in D')
-    parser.add_argument('--lambda_cls', type=float, default=1, help='weight for domain classification loss')
-    parser.add_argument('--lambda_rec', type=float, default=10, help='weight for reconstruction loss')
-    parser.add_argument('--lambda_gp', type=float, default=10, help='weight for gradient penalty')
+    parser.add_argument('--lambda_fm', type=float, default=1., help='weight for domain classification loss')
+    parser.add_argument('--lambda_rec', type=float, default=0.1, help='weight for reconstruction loss')
+    parser.add_argument('--lambda_gp', type=float, default=10., help='weight for gradient penalty')
+
+    parser.add_argument('--loss_type', type=str, default="hinge", help='[hinge, wgangp]')
+    parser.add_argument('--reg_type', type=str, default="real", help='[real, fake, real_fake]') # https://github.com/LMescheder/GAN_stability/blob/master/gan_training/train.py#L38
     
     # Training argsuration.
     parser.add_argument('--dataset', type=str, default='food')

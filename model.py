@@ -205,7 +205,7 @@ class StyleEncoder(nn.Module):
 
 class Generator(nn.Module):
     """Generator network."""
-    def __init__(self, conv_dim=64, repeat_num=6):
+    def __init__(self, conv_dim=64):
         super(Generator, self).__init__()
         self.CE = ContentEncoder(conv_dim=conv_dim, repeat_num=2)
         self.SE = StyleEncoder(conv_dim=conv_dim, repeat_num=5)
