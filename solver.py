@@ -65,7 +65,7 @@ class Solver(object):
 
         # Build the model and tensorboard.
         self.build_model()
-        # self.build_tensorboard()
+        self.build_tensorboard()
 
     def build_model(self):
         """Create a generator and a discriminator."""
