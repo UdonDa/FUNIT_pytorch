@@ -11,17 +11,20 @@ import numpy as np
 import os
 import time
 import datetime
+import random
+
 
 
 class Solver(object):
     """Solver for training and testing StarGAN."""
 
-    def __init__(self, content_loader, style_loader, args):
+    def __init__(self, content_loader, style_loaders, args):
         """Initialize argsurations."""
 
         # Data loader.
         self.content_loader = content_loader
-        self.style_loader = style_loader
+        self.style_loaders = style_loaders
+        self.style_iters = [iter(style_loader) for style_loader in style_loaders]
         self.args = args
 
         # Model argsurations.
@@ -59,8 +62,8 @@ class Solver(object):
         self.model_save_step = args.model_save_step
 
         # Build the model and tensorboard.
-        self.build_model()
-        self.build_tensorboard()
+        # self.build_model()
+        # self.build_tensorboard()
 
     def build_model(self):
         """Create a generator and a discriminator."""
@@ -170,18 +173,37 @@ class Solver(object):
     def train(self):
         """Train StarGAN within a single dataset."""
         print('Start training...')
-        for i in range(self.args.epochs):
-            p_bar = tqdm(zip(self.content_loader, self.style_loader))
-            self.G.train()
-            for j, (contents, styles) in enumerate(p_bar):
-
+        
+        for i in range(self.args.num_epochs):
+            # self.G.train()
+            
+            p_bar = tqdm(self.content_loader)
+            for j, (x_real, _)in enumerate(p_bar):
                 # =================================================================================== #
                 #                             1. Preprocess input data                                #
                 # =================================================================================== #
-                content_images, content_labels = contents
-                style_images, style_labels = styles
-                x_real = content_images.to(self.device)         # Input images.
-                x_style = style_images.to(self.device)          # Input styles.
+
+                x_real =  x_real.to(self.device)         # Input contents.
+
+                x_styles = []         # Input styles.
+                for i in range(self.args.c_dim):
+                    style_iter = self.style_iters[i]
+                    try:
+                        x_style, _ = next(style_iter)
+                    except:
+                        self.style_iters[i] = iter(self.style_loaders[i])
+                        style_iter = self.style_iters[i]
+                        x_style, _ = next(data_iter)
+                    x_styles.append(x_style)
+
+                    # TODO: DEBUG whether can sample all classes?
+                    # save_image(self.denorm(x_style), f"{self.args.sample_dir}/{i}.png")
+
+                # exit()
+
+
+                
+                
 
                 # =================================================================================== #
                 #                             2. Train the discriminator                              #
