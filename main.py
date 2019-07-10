@@ -25,13 +25,6 @@ def main(aegs):
                         args.mode,
                         args.num_workers)
 
-    style_loader = get_loader(args.image_dir,
-                        args.crop_size,
-                        args.image_size,
-                        args.batch_size,
-                        args.mode,
-                        args.num_workers)
-
     solver = Solver(content_loader, style_loader, args)
 
     if args.mode == 'train':

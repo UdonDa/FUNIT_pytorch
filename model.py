@@ -84,6 +84,33 @@ class ContentEncoder(nn.Module):
         return self.main(x) # -> [1, 512, 16, 16]
 
 
+class StyleEncoder(nn.Module):
+    def __init__(self, conv_dim=64, repeat_num=5):
+        super(StyleEncoder, self).__init__()
+        layers = []
+        layers.append(nn.Conv2d(3, conv_dim, kernel_size=7, stride=1, padding=3, bias=False)) # Official is k3,p1,s2
+        layers.append(nn.InstanceNorm2d(conv_dim, affine=True, track_running_stats=True))
+        layers.append(nn.ReLU(inplace=True))
+
+        # Down-sampling layers.
+        curr_dim = conv_dim
+        for i in range(repeat_num - 1):
+            layers.append(nn.Conv2d(curr_dim, curr_dim*2, kernel_size=4, stride=2, padding=1, bias=False))
+            layers.append(nn.InstanceNorm2d(curr_dim*2, affine=True, track_running_stats=True))
+            layers.append(nn.ReLU(inplace=True))
+            curr_dim = curr_dim * 2
+
+        layers.append(nn.AdaptiveMaxPool2d(1))
+        self.down_sample = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.down_sample(x) # -> [1, 512, 16, 16]
+        x = x.squeeze()
+        x = torch.squeeze(x, -1)
+        x = torch.squeeze(x, -1)
+        return x
+
+
 
 class Generator(nn.Module):
     """Generator network."""
@@ -148,14 +175,20 @@ class Discriminator(nn.Module):
 
 
 if __name__ == "__main__":
-    z = torch.randn(1,3,128,128).cuda()
+    z = torch.randn(4,3,128,128).cuda()
 
     # # Content Encoder
     # CE = ContentEncoder(conv_dim=64, repeat_num=2).cuda()
     # x = CE(z)
     # print(x.size()) # -> [1, 512, 16, 16]
 
-    # Discriminator
-    D = Discriminator(conv_dim=64, c_dim=10).cuda()
-    out = D(z)
-    print(out.size())
+    # Style Encoder
+    SE = StyleEncoder(conv_dim=64, repeat_num=5).cuda()
+    x = SE(z)
+    print(x.size())
+
+
+    # # Discriminator
+    # D = Discriminator(conv_dim=64, c_dim=10).cuda()
+    # out = D(z)
+    # print(out.size())
