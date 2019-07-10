@@ -38,6 +38,7 @@ class Solver(object):
         self.lambda_fm = args.lambda_fm
         self.lambda_rec = args.lambda_rec
         self.lambda_gp = args.lambda_gp
+        self.reg_type = args.reg_type
 
         # Training argsurations.
         self.dataset = args.dataset
@@ -110,7 +111,7 @@ class Solver(object):
         self.D.load_state_dict(torch.load(D_path, map_location=lambda storage, loc: storage))
 
     def build_tensorboard(self):
-        """Build a tensorboard logger."""
+        """Build a tensorboard writer."""
         self.writer = SummaryWriter(log_dir=self.log_dir)
 
     def update_lr(self, g_lr, d_lr):
@@ -154,7 +155,7 @@ class Solver(object):
 
     def compute_grad2(self, d_out, x_in):
         batch_size = x_in.size(0)
-        grad_dout = autograd.grad(
+        grad_dout = torch.autograd.grad(
             outputs=d_out.sum(), inputs=x_in,
             create_graph=True, retain_graph=True, only_inputs=True
         )[0]
@@ -226,7 +227,7 @@ class Solver(object):
                 #                             1. Preprocess input data                                #
                 # =================================================================================== #
 
-                x_real =  x_real.to(self.device)         # Input contents.
+                x_real =  x_real.to(self.device).requires_grad_()         # Input contents.
 
                 x_styles = []         # Input styles. During training, 
                 # G learns to translate images between two randomly sampled source classes.
@@ -273,7 +274,7 @@ class Solver(object):
                 # Feature matching loss.
                 y1 = self.D(x_styles[0].cuda())
                 y2 = self.D(x_styles[1].cuda())
-                d_loss_fm = torch.abs(y_fake - (y1+y2)/self.args.c_dim)
+                d_loss_fm = torch.abs(y_fake - (y1+y2)/self.args.c_dim).mean()
 
                 if self.args.loss_type == "wgangp":
                     d_loss_fake = y_fake.mean()
@@ -333,7 +334,7 @@ class Solver(object):
                     log = f""
                     for tag, value in loss.items():
                         log += ", {}: {:.4f}".format(tag, value)
-                        self.logger.scalar_summary(tag, value, i+1)
+                        self.writer.scalar_summary(tag, value, i+1)
                     p_bar.set_description(log)
 
                 # Translate fixed images for debugging.
