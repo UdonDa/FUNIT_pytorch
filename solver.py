@@ -191,12 +191,6 @@ class Solver(object):
             c_trg_list.append(c_trg.to(self.device))
         return c_trg_list
 
-    def classification_loss(self, logit, target, dataset='CelebA'):
-        """Compute binary or softmax cross entropy loss."""
-        if dataset == 'CelebA':
-            return F.binary_cross_entropy_with_logits(logit, target, size_average=False) / logit.size(0)
-        elif dataset == 'RaFD':
-            return F.cross_entropy(logit, target)
 
     def accumulate(self, model1, model2, decay=0.999):
         par1 = dict(model1.named_parameters())
@@ -216,13 +210,13 @@ class Solver(object):
     def train(self):
         """Train StarGAN within a single dataset."""
         print('Start training...')
-        
+        loss = {}
         for i in range(self.args.num_epochs):
-            # self.G.train()
+            self.G.train()
             
             p_bar = tqdm(self.content_loader)
             for j, (x_real, _)in enumerate(p_bar):
-                loss = {}
+                
                 # =================================================================================== #
                 #                             1. Preprocess input data                                #
                 # =================================================================================== #
@@ -330,12 +324,11 @@ class Solver(object):
                 # =================================================================================== #
                 i = i*self.args.num_epochs + j
                 # Print out training information.
-                if (i+1) % self.log_step == 0:
-                    log = f""
-                    for tag, value in loss.items():
-                        log += ", {}: {:.4f}".format(tag, value)
-                        self.writer.scalar_summary(tag, value, i+1)
-                    p_bar.set_description(log)
+                log = f""
+                for tag, value in loss.items():
+                    log += ", {}: {:.4f}".format(tag, value)
+                    self.writer.add_scalar(tag, value, i+1)
+                p_bar.set_description(log)
 
                 # Translate fixed images for debugging.
                 if (i+1) % self.sample_step == 0:
@@ -375,38 +368,6 @@ class Solver(object):
                 # Translate images.
                 x_fake_list = [x_real]
                 for c_trg in c_trg_list:
-                    x_fake_list.append(self.G(x_real, c_trg))
-
-                # Save the translated images.
-                x_concat = torch.cat(x_fake_list, dim=3)
-                result_path = os.path.join(self.result_dir, '{}-images.jpg'.format(i+1))
-                save_image(self.denorm(x_concat.data.cpu()), result_path, nrow=1, padding=0)
-                print('Saved real and fake images into {}...'.format(result_path))
-
-    def test_multi(self):
-        """Translate images using StarGAN trained on multiple datasets."""
-        # Load the trained generator.
-        self.restore_model(self.test_iters)
-        
-        with torch.no_grad():
-            for i, (x_real, c_org) in enumerate(self.celeba_loader):
-
-                # Prepare input images and target domain labels.
-                x_real = x_real.to(self.device)
-                c_celeba_list = self.create_labels(c_org, self.c_dim, 'CelebA', self.selected_attrs)
-                c_rafd_list = self.create_labels(c_org, self.c2_dim, 'RaFD')
-                zero_celeba = torch.zeros(x_real.size(0), self.c_dim).to(self.device)            # Zero vector for CelebA.
-                zero_rafd = torch.zeros(x_real.size(0), self.c2_dim).to(self.device)             # Zero vector for RaFD.
-                mask_celeba = self.label2onehot(torch.zeros(x_real.size(0)), 2).to(self.device)  # Mask vector: [1, 0].
-                mask_rafd = self.label2onehot(torch.ones(x_real.size(0)), 2).to(self.device)     # Mask vector: [0, 1].
-
-                # Translate images.
-                x_fake_list = [x_real]
-                for c_celeba in c_celeba_list:
-                    c_trg = torch.cat([c_celeba, zero_rafd, mask_celeba], dim=1)
-                    x_fake_list.append(self.G(x_real, c_trg))
-                for c_rafd in c_rafd_list:
-                    c_trg = torch.cat([zero_celeba, c_rafd, mask_rafd], dim=1)
                     x_fake_list.append(self.G(x_real, c_trg))
 
                 # Save the translated images.
