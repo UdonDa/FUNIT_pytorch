@@ -18,14 +18,21 @@ def main(aegs):
     os.makedirs(args.sample_dir, exist_ok=True)
     os.makedirs(args.result_dir, exist_ok=True)
 
-    loader = get_loader(args.image_dir,
+    content_loader = get_loader(args.image_dir,
                         args.crop_size,
                         args.image_size,
                         args.batch_size,
                         args.mode,
                         args.num_workers)
 
-    solver = Solver(loader, args)
+    style_loader = get_loader(args.image_dir,
+                        args.crop_size,
+                        args.image_size,
+                        args.batch_size,
+                        args.mode,
+                        args.num_workers)
+
+    solver = Solver(content_loader, style_loader, args)
 
     if args.mode == 'train':
         solver.train()
@@ -39,8 +46,10 @@ if __name__ == '__main__':
     name = "debug"
 
     # Model argsuration.
-    parser.add_argument('--crop_size', type=int, default=286, help='crop size for the RaFD dataset')
-    parser.add_argument('--image_size', type=int, default=256, help='image resolution')
+    # parser.add_argument('--crop_size', type=int, default=286, help='crop size for the RaFD dataset')
+    # parser.add_argument('--image_size', type=int, default=256, help='image resolution')
+    parser.add_argument('--crop_size', type=int, default=178, help='crop size for the RaFD dataset')
+    parser.add_argument('--image_size', type=int, default=128, help='image resolution')
     parser.add_argument('--g_conv_dim', type=int, default=64, help='number of conv filters in the first layer of G')
     parser.add_argument('--d_conv_dim', type=int, default=64, help='number of conv filters in the first layer of D')
     parser.add_argument('--g_repeat_num', type=int, default=6, help='number of residual blocks in G')

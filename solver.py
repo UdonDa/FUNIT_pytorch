@@ -4,23 +4,24 @@ from torch.autograd import Variable
 from torchvision.utils import save_image
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
+from sys import exit
 import torch
 import torch.nn.functional as F
 import numpy as np
 import os
 import time
 import datetime
-import sys
 
 
 class Solver(object):
     """Solver for training and testing StarGAN."""
 
-    def __init__(self, loader, args):
+    def __init__(self, content_loader, style_loader, args):
         """Initialize argsurations."""
 
         # Data loader.
-        self.loader = loader
+        self.content_loader = content_loader
+        self.style_loader = style_loader
         self.args = args
 
         # Model argsurations.
@@ -169,60 +170,39 @@ class Solver(object):
         """Train StarGAN within a single dataset."""
         print('Start training...')
         for i in range(self.args.epochs):
-            p_bar = tqdm(self.loader)
+            p_bar = tqdm(zip(self.content_loader, self.style_loader))
             self.G.train()
-            for j, (images, labels) in enumerate(p_bar):
+            for j, (contents, styles) in enumerate(p_bar):
 
                 # =================================================================================== #
                 #                             1. Preprocess input data                                #
                 # =================================================================================== #
-
-                # Fetch real images and labels.
-                try:
-                    x_real, label_org = next(data_iter)
-                except:
-                    data_iter = iter(data_loader)
-                    x_real, label_org = next(data_iter)
-
-                # Generate target domain labels randomly.
-                rand_idx = torch.randperm(label_org.size(0))
-                label_trg = label_org[rand_idx]
-
-                if self.dataset == 'CelebA':
-                    c_org = label_org.clone()
-                    c_trg = label_trg.clone()
-                elif self.dataset == 'RaFD':
-                    c_org = self.label2onehot(label_org, self.c_dim)
-                    c_trg = self.label2onehot(label_trg, self.c_dim)
-
-                x_real = x_real.to(self.device)           # Input images.
-                c_org = c_org.to(self.device)             # Original domain labels.
-                c_trg = c_trg.to(self.device)             # Target domain labels.
-                label_org = label_org.to(self.device)     # Labels for computing classification loss.
-                label_trg = label_trg.to(self.device)     # Labels for computing classification loss.
+                content_images, content_labels = contents
+                style_images, style_labels = styles
+                x_real = content_images.to(self.device)         # Input images.
+                x_style = style_images.to(self.device)          # Input styles.
 
                 # =================================================================================== #
                 #                             2. Train the discriminator                              #
                 # =================================================================================== #
 
                 # Compute loss with real images.
-                out_src, out_cls = self.D(x_real)
-                d_loss_real = - torch.mean(out_src)
-                d_loss_cls = self.classification_loss(out_cls, label_org, self.dataset)
+                y_real = self.D(x_real)
+                d_loss_real = - torch.mean(y_real)
 
                 # Compute loss with fake images.
-                x_fake = self.G(x_real, c_trg)
-                out_src, out_cls = self.D(x_fake.detach())
+                x_fake = self.G(x_real)
+                y_fake = self.D(x_fake.detach())
                 d_loss_fake = torch.mean(out_src)
 
                 # Compute loss for gradient penalty.
                 alpha = torch.rand(x_real.size(0), 1, 1, 1).to(self.device)
                 x_hat = (alpha * x_real.data + (1 - alpha) * x_fake.data).requires_grad_(True)
-                out_src, _ = self.D(x_hat)
-                d_loss_gp = self.gradient_penalty(out_src, x_hat)
+                y_fake_hat = self.D(x_hat)
+                d_loss_gp = self.gradient_penalty(y_fake_hat, x_hat)
 
                 # Backward and optimize.
-                d_loss = d_loss_real + d_loss_fake + self.lambda_cls * d_loss_cls + self.lambda_gp * d_loss_gp
+                d_loss = d_loss_real + d_loss_fake + self.lambda_gp * d_loss_gp
                 self.reset_grad()
                 d_loss.backward()
                 self.d_optimizer.step()
