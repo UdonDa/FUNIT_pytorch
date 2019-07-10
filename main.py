@@ -60,6 +60,7 @@ if __name__ == '__main__':
     
     # Training argsuration.
     parser.add_argument('--dataset', type=str, default='food')
+    parser.add_argument('--c_dim', type=int, default=13, help='number of dataset classes.')
     parser.add_argument('--epochs', type=int, default=200, help='mini-batch size')
     parser.add_argument('--batch_size', type=int, default=16, help='mini-batch size')
     parser.add_argument('--g_lr', type=float, default=0.0001, help='learning rate for G')
