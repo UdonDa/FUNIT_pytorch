@@ -37,8 +37,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_dir', type=str, default='./UECFOOD256')
+    parser.add_argument('--dataset_dir', type=str, default='UECFOOD256')
     parser.add_argument('--output_dir', type=str, default='./data/uecfood256')
     args = parser.parse_args()
+
+    args.dataset_dir = os.path.join(os.getcwd(), args.dataset_dir)
+    print(args.dataset_dir)
 
     main(args)

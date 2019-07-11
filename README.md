@@ -8,8 +8,21 @@ Official is here(https://github.com/NVlabs/FUNIT).
 
 
 # Usage
-+ Please split your train dataset into content and style. Note that each class does not overlap.
-+ To start training, `python main.py`.
++ `bash preprosess.sh`
++ `python main.py`.
+
+# Dataset
+I use UECFOOD256(http://foodcam.mobi/dataset256.html), which official paper also use this dataset as Foods.
+If you want to use thid dataset, please cite this paper and check rules.
+```
+@InProceedings{kawano14c,
+ author="Kawano, Y. and Yanai, K.",
+ title="Automatic Expansion of a Food Image Dataset Leveraging Existing Categories with Domain Adaptation",
+ booktitle="Proc. of ECCV Workshop on Transferring and Adapting Source
+Knowledge in Computer Vision (TASK-CV)",
+ year="2014",
+}
+```
 
 # Bug
 I can not know some implementation because paper does not show enough information.
@@ -17,14 +30,20 @@ So, please send me pull request.
 
 
 # Official
-```
-Few-Shot Unsupervised Image-to-Image Translation
-Ming-Yu Liu, Xun Huang, Arun Mallya, Tero Karras, Timo Aila, Jaakko Lehtinen, Jan Kautz
-https://arxiv.org/abs/1905.01723
-```
 + https://nvlabs.github.io/FUNIT/
 + https://github.com/NVLabs/FUNIT
 
+# Citation
+If you use this code for your research, please cite official papers.
+
+```
+@inproceedings{liu2019few,
+  title={Few-shot Unsueprvised Image-to-Image Translation},
+  author={Ming-Yu Liu and Xun Huang and Arun Mallya and Tero Karras and Timo Aila and Jaakko Lehtinen and Jan Kautz.},
+  booktitle={arxiv},
+  year={2019}
+}
+```
 
 # Ack
 This repository is built on StarGAN（https://github.com/yunjey/stargan, thanks.

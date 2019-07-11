@@ -4,8 +4,10 @@ from solver import Solver
 from data_loader import get_loader
 from torch.backends import cudnn
 from glob import glob
-
 from sys import exit
+import resource
+soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
 
 def main(aegs):
@@ -28,7 +30,7 @@ def main(aegs):
                         args.mode,
                         args.num_workers) for style_dir in style_dirs]
     args.c_dim = len(style_loaders)
-    print("num of classes: ", args.c_dim)
+    print("num of style classes: ", args.c_dim)
 
     # Create Content Loader.
     content_loader = get_loader(args.content_dir,
@@ -89,8 +91,8 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
 
     # Directories.
-    parser.add_argument('--content_dir', type=str, default='data/food_content')
-    parser.add_argument('--style_dir', type=str, default='data/food_style')
+    parser.add_argument('--content_dir', type=str, default='data/uecfood256/content')
+    parser.add_argument('--style_dir', type=str, default='data/uecfood256/style')
 
     parser.add_argument('--results_dir', type=str, default='results/')
     parser.add_argument('--log_dir', type=str, default=f'results/{name}/logs')
