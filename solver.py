@@ -211,7 +211,7 @@ class Solver(object):
         """Train StarGAN within a single dataset."""
         print('Start training...')
         loss = {}
-        for i in range(self.args.num_epochs):
+        for epoch in range(self.args.num_epochs):
             self.G.train()
             
             p_bar = tqdm(self.content_loader)
@@ -228,13 +228,11 @@ class Solver(object):
                 # In the implementation section, I can not understand `we train the FUNIT model using K = 1`.
                 A, B = self.choose_label()
                 for i in [A, B]:
-                    style_iter = self.style_iters[i]
                     try:
-                        x_style, _ = next(style_iter)
+                        x_style, _ = next(self.style_iters[i])
                     except:
                         self.style_iters[i] = iter(self.style_loaders[i])
-                        style_iter = self.style_iters[i]
-                        x_style, _ = next(data_iter)
+                        x_style, _ = next(self.style_iters[i])
                     x_styles.append(x_style)
 
                     # TODO: DEBUG whether can sample all classes?
@@ -300,7 +298,7 @@ class Solver(object):
                 #                               3. Train the generator                                #
                 # =================================================================================== #
                 
-                if (i+1) % self.n_critic == 0:
+                if (j+1) % self.n_critic == 0:
                     # Adv Loss
                     x_fake = self.G(x_real, x_styles)
                     y_fake = self.D(x_fake)
@@ -315,6 +313,8 @@ class Solver(object):
                     g_loss.backward()
                     self.g_optimizer.step()
 
+                    self.accumulate(self.generator, self.G.module)
+
                     # Logging.
                     loss['G/loss_fake'] = g_loss_fake.item()
                     loss['G/loss_rec'] = g_loss_rec.item()
@@ -322,9 +322,9 @@ class Solver(object):
                 # =================================================================================== #
                 #                                 4. Miscellaneous                                    #
                 # =================================================================================== #
-                i = i*self.args.num_epochs + j
+                i = epoch * self.args.num_epochs + j
                 # Print out training information.
-                log = f""
+                log = ""
                 for tag, value in loss.items():
                     log += ", {}: {:.4f}".format(tag, value)
                     self.writer.add_scalar(tag, value, i+1)
@@ -333,17 +333,26 @@ class Solver(object):
                 # Translate fixed images for debugging.
                 if (i+1) % self.sample_step == 0:
                     with torch.no_grad():
-                        x_concat = torch.cat(x_styles[0], x_styles[1], x_fake, dim=3)
-                        sample_path = os.path.join(self.sample_dir, '{}-images.jpg'.format(i+1))
+                        x_concat = torch.cat([x_real, x_styles[0].to(self.device), x_styles[1].to(self.device), x_fake], dim=3)
+                        sample_path = os.path.join(self.sample_dir, '{}-G.jpg'.format(i+1))
                         save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
-                        print('Saved real and fake images into {}...'.format(sample_path))
+
+                    with torch.no_grad():
+                        x_fake = self.generator(x_real, x_styles)
+                        x_concat = torch.cat([x_real, x_styles[0].to(self.device), x_styles[1].to(self.device), x_fake], dim=3)
+                        sample_path = os.path.join(self.sample_dir, '{}-accum-G.jpg'.format(i+1))
+                        save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
+                        
+                    print('Saved real and fake images into {}...'.format(sample_path))
 
                 # Save model checkpoints.
                 if (i+1) % self.model_save_step == 0:
                     G_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(i+1))
                     D_path = os.path.join(self.model_save_dir, '{}-D.ckpt'.format(i+1))
+                    G_accum_path = os.path.join(self.model_save_dir, '{}-accm-G.ckpt'.format(i+1))
                     torch.save(self.G.state_dict(), G_path)
                     torch.save(self.D.state_dict(), D_path)
+                    torch.save(self.generator.state_dict(), G_accum_path)
                     print('Saved model checkpoints into {}...'.format(self.model_save_dir))
 
 
