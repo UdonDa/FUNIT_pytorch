@@ -43,7 +43,7 @@ def main(aegs):
     if args.mode == 'train':
         solver.train()
     elif args.mode == 'test':
-        solver.test()
+        raise NotImplementedError()
 
 
 if __name__ == '__main__':
