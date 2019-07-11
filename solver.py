@@ -209,7 +209,9 @@ class Solver(object):
                     x_styles.append(x_style)
 
                     # TODO: DEBUG whether can sample all classes?
-                    # save_image(self.denorm(x_style), f"{self.args.sample_dir}/{i}.png")
+                #     save_image(self.denorm(x_style), f"{self.args.sample_dir}/x_style_{i}.png")
+                # save_image(self.denorm(x_real), f"{self.args.sample_dir}/x_real.png")
+                # exit()
 
                 # =================================================================================== #
                 #                             2. Train the discriminator                              #

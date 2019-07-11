@@ -52,7 +52,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # name = "debug"
-    name = "test"
+    # name = "test"
+    name = "7_11_uecfood256_1"
 
     # Model argsuration.
     # parser.add_argument('--crop_size', type=int, default=286, help='crop size for the RaFD dataset')
@@ -75,8 +76,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='food')
     parser.add_argument('--c_dim', type=int, default=13, help='number of dataset classes.')
     parser.add_argument('--num_iters', type=int, default=200000, help='mini-batch size')
-    parser.add_argument('--num_epochs', type=int, default=200, help='mini-batch size')
-    parser.add_argument('--batch_size', type=int, default=16, help='mini-batch size')
+    parser.add_argument('--num_epochs', type=int, default=300, help='mini-batch size')
+    parser.add_argument('--batch_size', type=int, default=80, help='mini-batch size')
     parser.add_argument('--g_lr', type=float, default=0.0001, help='learning rate for G')
     parser.add_argument('--d_lr', type=float, default=0.0001, help='learning rate for D')
     parser.add_argument('--n_critic', type=int, default=5, help='number of D updates per each G update')
