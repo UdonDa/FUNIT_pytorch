@@ -210,12 +210,13 @@ class Generator(nn.Module):
         self.CE = ContentEncoder(conv_dim=conv_dim, repeat_num=2)
         self.SE = StyleEncoder(conv_dim=conv_dim, repeat_num=5)
         self.CD = ContentDecoder(conv_dim=conv_dim, repeat_num=2)
+        self.tanh = nn.Tanh()
 
     def forward(self, x, styles):
         style = self.SE(styles) # -> [4, 1024]
         x = self.CE(x) # -> [4, 512, 16, 16]
 
-        return self.CD(x, style)
+        return self.tanh(self.CD(x, style))
 
 
 
@@ -252,13 +253,16 @@ class Discriminator(nn.Module):
         layers.append(ResidualBlockNoNorm(dim_in=curr_dim, dim_out=curr_dim))
         layers.append(ResidualBlockNoNorm(dim_in=curr_dim, dim_out=curr_dim))
 
-
-        layers.append(nn.Conv2d(curr_dim, c_dim, kernel_size=3, stride=1, padding=1))
-
         self.main = nn.Sequential(*layers)
+
+        self.last_conv = nn.Conv2d(curr_dim, c_dim, kernel_size=3, stride=1, padding=1)
+
+        
         
     def forward(self, x):
-        return self.main(x) # -> [1, 10, 4, 4]
+        feature = self.main(x)
+        output = self.last_conv(feature) # -> [1, 10, 4, 4]
+        return output, feature
 
 
 if __name__ == "__main__":

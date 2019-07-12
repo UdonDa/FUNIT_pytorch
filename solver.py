@@ -92,6 +92,19 @@ class Solver(object):
         self.D.to(self.device)
         self.generator.to(self.device)
 
+        # weight init
+        self.G.apply(self.weights_init)
+        self.D.apply(self.weights_init)
+        self.generator.apply(self.weights_init)
+
+
+    def weights_init(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            nn.init.normal_(m.weight.data, 0.0, 0.02)
+        # elif classname.find('Norm') != -1:
+        #     nn.init.normal_(m.weight.data, 1.0, 0.02)
+        #     nn.init.constant_(m.bias.data, 0)
 
     def print_network(self, model, name):
         """Print out the network information."""
@@ -109,6 +122,12 @@ class Solver(object):
         D_path = os.path.join(self.model_save_dir, '{}-D.ckpt'.format(resume_iters))
         self.G.load_state_dict(torch.load(G_path, map_location=lambda storage, loc: storage))
         self.D.load_state_dict(torch.load(D_path, map_location=lambda storage, loc: storage))
+
+    def restore_model(self, resume_iters):
+        """Restore the trained generator."""
+        print('Loading the trained models from step {}...'.format(resume_iters))
+        G_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(resume_iters))
+        self.G.load_state_dict(torch.load(G_path, map_location=lambda storage, loc: storage))
 
     def build_tensorboard(self):
         """Build a tensorboard writer."""
@@ -135,7 +154,7 @@ class Solver(object):
         """Compute gradient penalty: (L2_norm(dy/dx) - 1)**2."""
         alpha = torch.rand(x_real.size(0), 1, 1, 1).to(self.device)
         x_hat = (alpha * x_real.data + (1 - alpha) * x_fake.data).requires_grad_(True)
-        y_fake_hat = self.D(x_hat)
+        y_fake_hat, _ = self.D(x_hat)
 
         y = y_fake_hat
         x = x_hat
@@ -180,12 +199,26 @@ class Solver(object):
         else:
             return self.choose_label()
 
+
+    def compute_triplet_loss(self, anchor=None, negative=None, positive=None):
+        A = - torch.abs(anchor - positive)
+        denominator = A.exponential_(1).mean()
+        B = - torch.abs(anchor - negative)
+        numerator = (B.exponential_(1) + A.exponential_(1)).mean()
+
+        loss = (- torch.log(denominator / numerator))#.mean()
+
+    
+        return loss
+
     def train(self):
         """Train StarGAN within a single dataset."""
         print('Start training...')
         loss = {}
+        counter = 0
         for epoch in range(self.args.num_epochs):
             self.G.train()
+            self.generator.train()
             
             p_bar = tqdm(self.content_loader)
             for j, (x_real, _)in enumerate(p_bar):
@@ -220,28 +253,32 @@ class Solver(object):
                 self.reset_grad()
                 
                 # Compute loss with real images.
-                y_real = self.D(x_real)
+                y_real, feature_real = self.D(x_real)
 
                 if self.args.loss_type == "wgangp":
                     d_loss_real = - y_real.mean()
                 elif self.args.loss_type == "hinge":
                     d_loss_real = nn.ReLU()(1.0 - y_real).mean()
-                    if self.reg_type == 'real' or self.reg_type == 'real_fake':
-                        d_loss_real.backward(retain_graph=True)
-                        reg = self.lambda_gp * self.compute_grad2(y_real, x_real).mean()
-                        reg.backward()
-                        loss['D/loss_reg_real'] = reg.item()
-                    else:
-                        d_loss_real.backward()
+                    # if self.reg_type == 'real' or self.reg_type == 'real_fake':
+                    #     d_loss_real.backward(retain_graph=True)
+                    #     reg = self.lambda_gp * self.compute_grad2(y_real, x_real).mean()
+                    #     reg.backward()
+                    #     loss['D/loss_reg_real'] = reg.item()
+                    # else:
+                    #     d_loss_real.backward()
 
                 # Compute loss with fake images.
                 x_fake = self.G(x_real, x_styles)
-                y_fake = self.D(x_fake.detach())
+                y_fake, feature_fake = self.D(x_fake.detach())
 
                 # Feature matching loss.
-                y1 = self.D(x_styles[0].cuda())
-                y2 = self.D(x_styles[1].cuda())
-                d_loss_fm = torch.abs(y_fake - (y1+y2)/self.args.c_dim).mean()
+                _, feature_y1 = self.D(x_styles[0].cuda())
+                _, feature_y2 = self.D(x_styles[1].cuda())
+                mean_feature = (feature_y1 + feature_y2) / 2
+                # d_loss_fm = torch.abs(y_feature - (feature_y1 + feature_y2)/2).mean()
+
+                d_loss_fm = self.compute_triplet_loss(
+                    anchor=feature_fake, negative=feature_real, positive=mean_feature).mean()
 
                 if self.args.loss_type == "wgangp":
                     d_loss_fake = y_fake.mean()
@@ -250,16 +287,18 @@ class Solver(object):
                     d_loss.backward()
                     loss['D/loss_gp'] = d_loss_gp.item()
                 elif self.args.loss_type == "hinge":
-                    d_loss_fm = self.lambda_fm * d_loss_fm
-                    d_loss_fm.backward(retain_graph=True)
                     d_loss_fake = nn.ReLU()(1.0 + y_fake).mean()
-                    if self.reg_type == 'fake' or self.reg_type == 'real_fake':
-                        d_loss_fake.backward(retain_graph=True)
-                        reg = self.lambda_gp * self.compute_grad2(y_fake, x_fake).mean()
-                        reg.backward()
-                        loss['D/loss_reg_fake'] = reg.item()
-                    else:
-                        d_loss_fake.backward()
+
+                    d_loss = d_loss_real + d_loss_fake + self.lambda_fm * d_loss_fm
+                    d_loss.backward()
+
+                    # if self.reg_type == 'fake' or self.reg_type == 'real_fake':
+                    #     d_loss_fake.backward(retain_graph=True)
+                    #     reg = self.lambda_gp * self.compute_grad2(y_fake, x_fake).mean()
+                    #     reg.backward()
+                    #     loss['D/loss_reg_fake'] = reg.item()
+                    # else:
+                        # d_loss_fake.backward()
                 
                 self.d_optimizer.step()
 
@@ -275,7 +314,7 @@ class Solver(object):
                 if (j+1) % self.n_critic == 0:
                     # Adv Loss
                     x_fake = self.G(x_real, x_styles)
-                    y_fake = self.D(x_fake)
+                    y_fake, _ = self.D(x_fake)
                     g_loss_fake = - y_fake.mean()
 
                     # Rec Loss
@@ -293,38 +332,69 @@ class Solver(object):
                     loss['G/loss_fake'] = g_loss_fake.item()
                     loss['G/loss_rec'] = g_loss_rec.item()
 
-                # =================================================================================== #
-                #                                 4. Miscellaneous                                    #
-                # =================================================================================== #
-                i = epoch * self.args.num_epochs + j
                 # Print out training information.
-                log = ""
+                log = f"Epoch[{epoch}/{self.args.num_epochs}]"
                 for tag, value in loss.items():
                     log += ", {}: {:.4f}".format(tag, value)
-                    self.writer.add_scalar(tag, value, i+1)
+                    self.writer.add_scalar(tag, value, counter)
                 p_bar.set_description(log)
+                counter += 1
 
-                # Translate fixed images for debugging.
-                if (i+1) % self.sample_step == 0:
-                    with torch.no_grad():
-                        x_concat = torch.cat([x_real, x_styles[0].to(self.device), x_styles[1].to(self.device), x_fake], dim=3)
-                        sample_path = os.path.join(self.sample_dir, '{}-G.jpg'.format(i+1))
-                        save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
+            # =================================================================================== #
+            #                                 4. Miscellaneous                                    #
+            # =================================================================================== #
 
-                    with torch.no_grad():
-                        x_fake = self.generator(x_real, x_styles)
-                        x_concat = torch.cat([x_real, x_styles[0].to(self.device), x_styles[1].to(self.device), x_fake], dim=3)
-                        sample_path = os.path.join(self.sample_dir, '{}-accum-G.jpg'.format(i+1))
-                        save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
-                        
-                    print('Saved real and fake images into {}...'.format(sample_path))
+            # Translate fixed images for debugging.
+            if (epoch+1) % self.sample_step == 0:
+                self.G.eval()
+                self.generator.eval()
+                with torch.no_grad():
+                    x_concat = torch.cat([x_real, x_styles[0].to(self.device), x_styles[1].to(self.device), x_fake], dim=3)
+                    sample_path = os.path.join(self.sample_dir, '{}-G.png'.format(epoch))
+                    save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
 
-                # Save model checkpoints.
-                if (i+1) % self.model_save_step == 0:
-                    G_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(i+1))
-                    D_path = os.path.join(self.model_save_dir, '{}-D.ckpt'.format(i+1))
-                    G_accum_path = os.path.join(self.model_save_dir, '{}-accm-G.ckpt'.format(i+1))
-                    torch.save(self.G.state_dict(), G_path)
-                    torch.save(self.D.state_dict(), D_path)
-                    torch.save(self.generator.state_dict(), G_accum_path)
-                    print('Saved model checkpoints into {}...'.format(self.model_save_dir))
+                with torch.no_grad():
+                    x_fake = self.generator(x_real, x_styles)
+                    x_concat = torch.cat([x_real, x_styles[0].to(self.device), x_styles[1].to(self.device), x_fake], dim=3)
+                    sample_path = os.path.join(self.sample_dir, '{}-accum-G.png'.format(epoch))
+                    save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
+
+            # Save model checkpoints.
+            if (epoch+1) % self.model_save_step == 0:
+                G_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(epoch))
+                D_path = os.path.join(self.model_save_dir, '{}-D.ckpt'.format(epoch))
+                G_accum_path = os.path.join(self.model_save_dir, '{}-accm-G.ckpt'.format(epoch))
+                torch.save(self.G.state_dict(), G_path)
+                torch.save(self.D.state_dict(), D_path)
+                torch.save(self.generator.state_dict(), G_accum_path)
+                print('Saved model checkpoints into {}...'.format(self.model_save_dir))
+
+    def test(self):
+        os.makedirs(self.args.generated_dir , exist_ok=True)
+
+        self.restore_model(self.args.test_model_epoch)
+        
+        content_iter = iter(self.content_loader)
+        
+        print("Start generate fake images")
+        for dim in range(self.args.c_dim):
+            for j in tqdm(range(self.args.num_output_each_dim)):
+                x_real, _ = next(content_iter)
+                x_real = x_real.to(self.device)
+
+                x_styles = []
+                for _ in range(self.args.num_input_styles):
+                    x_style, _ = next(self.style_iters[dim])
+                    x_styles.append(x_style)
+                
+                with torch.no_grad():
+                    x_fake = self.G(x_real, x_styles)
+                
+                x_concat = x_real
+                for x_style in x_styles:
+                    x_concat = torch.cat([x_concat, x_style.to(self.device)], dim=3)
+                x_concat = torch.cat([x_concat, x_fake], dim=3)
+
+                sample_path = os.path.join(self.args.generated_dir, f'{dim}-{j}-{self.args.test_model_epoch}.png')
+                save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
+            print(f"Finish {dim}")

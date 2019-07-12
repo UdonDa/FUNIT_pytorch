@@ -15,7 +15,7 @@ def main(aegs):
     cudnn.benchmark = True
 
     # Create directories if not exist.
-    os.makedirs(args.results_dir    , exist_ok=True)
+    os.makedirs(args.results_dir , exist_ok=True)
     os.makedirs(args.log_dir, exist_ok=True)
     os.makedirs(args.model_save_dir, exist_ok=True)
     os.makedirs(args.sample_dir, exist_ok=True)
@@ -45,7 +45,7 @@ def main(aegs):
     if args.mode == 'train':
         solver.train()
     elif args.mode == 'test':
-        raise NotImplementedError()
+        solver.test()
 
 
 if __name__ == '__main__':
@@ -53,7 +53,9 @@ if __name__ == '__main__':
 
     # name = "debug"
     # name = "test"
-    name = "7_11_uecfood256_1"
+    name = "7_12_uecfood256_1"
+    # name = "7_11_uecfood256_1_n_critic1"
+    # name = "7_11_original_1"
 
     # Model argsuration.
     # parser.add_argument('--crop_size', type=int, default=286, help='crop size for the RaFD dataset')
@@ -68,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_rec', type=float, default=0.1, help='weight for reconstruction loss')
     parser.add_argument('--lambda_gp', type=float, default=10., help='weight for gradient penalty')
 
-    parser.add_argument('--loss_type', type=str, default="hinge", help='[hinge, wgangp]')
+    parser.add_argument('--loss_type', type=str, default="hinge", help='[hinge, wgangp, normal]')
     # parser.add_argument('--loss_type', type=str, default="wgangp", help='[hinge, wgangp]')
     parser.add_argument('--reg_type', type=str, default="none", help='[real, fake, real_fake]') # https://github.com/LMescheder/GAN_stability/blob/master/gan_training/train.py#L38
     
@@ -85,26 +87,33 @@ if __name__ == '__main__':
     parser.add_argument('--beta2', type=float, default=0.999, help='beta2 for Adam optimizer')
 
     # Test argsuration.
-    parser.add_argument('--test_iters', type=int, default=200000, help='test model from this step')
+    parser.add_argument('--test_model_epoch', type=int, default=39, help='test model from this step')
+    parser.add_argument('--num_input_styles', type=int, default=2, help='test model from this step')
+    parser.add_argument('--num_output_each_dim', type=int, default=10, help='test model from this step')
 
     # Miscellaneous.
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
 
     # Directories.
+    # UECFOOD256
     parser.add_argument('--content_dir', type=str, default='data/uecfood256/content')
     parser.add_argument('--style_dir', type=str, default='data/uecfood256/style')
+    # Original
+    # parser.add_argument('--content_dir', type=str, default='data/food_content')
+    # parser.add_argument('--style_dir', type=str, default='data/food_style')
 
     parser.add_argument('--results_dir', type=str, default='results/')
     parser.add_argument('--log_dir', type=str, default=f'results/{name}/logs')
     parser.add_argument('--model_save_dir', type=str, default=f'results/{name}/models')
     parser.add_argument('--sample_dir', type=str, default=f'results/{name}/samples')
     parser.add_argument('--result_dir', type=str, default=f'results/{name}/results')
+    parser.add_argument('--generated_dir', type=str, default=f'results/{name}/generated')
 
     # Step size.
     parser.add_argument('--log_step', type=int, default=10)
-    parser.add_argument('--sample_step', type=int, default=1000)
-    parser.add_argument('--model_save_step', type=int, default=10000)
+    parser.add_argument('--sample_step', type=int, default=1)
+    parser.add_argument('--model_save_step', type=int, default=10)
 
     args = parser.parse_args()
     # print(args)
