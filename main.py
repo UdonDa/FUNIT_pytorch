@@ -56,7 +56,8 @@ if __name__ == '__main__':
     # name = "7_12_uecfood256_1_hinge"
     # name = "7_11_uecfood256_1_n_critic1"
     # name = "7_11_original_1"
-    name = "7_12_uecfood256_BCE"
+    # name = "7_12_uecfood256_BCE"
+    name = "7_12_uecfood256_ls"
 
     # Model argsuration.
     # parser.add_argument('--crop_size', type=int, default=286, help='crop size for the RaFD dataset')
@@ -67,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('--d_conv_dim', type=int, default=64, help='number of conv filters in the first layer of D')
     parser.add_argument('--g_repeat_num', type=int, default=6, help='number of residual blocks in G')
     parser.add_argument('--d_repeat_num', type=int, default=6, help='number of strided conv layers in D')
-    parser.add_argument('--lambda_fm', type=float, default=1., help='weight for domain classification loss')
+    parser.add_argument('--lambda_fm', type=float, default=0.1, help='weight for domain classification loss')
     parser.add_argument('--lambda_rec', type=float, default=0.1, help='weight for reconstruction loss')
     parser.add_argument('--lambda_gp', type=float, default=10., help='weight for gradient penalty')
 

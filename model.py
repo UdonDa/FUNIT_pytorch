@@ -1,10 +1,9 @@
+import torch.nn.utils.spectral_norm as SN
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from time import time
-from torch.nn.utils.spectral_norm as SN
-
 
 
 class AdainLinear(nn.Module):
