@@ -39,6 +39,8 @@ class Solver(object):
         self.lambda_rec = args.lambda_rec
         self.lambda_gp = args.lambda_gp
         self.reg_type = args.reg_type
+        self.BCELoss = nn.BCELoss()
+        self.sigmoid = nn.Sigmoid()
 
         # Training argsurations.
         self.dataset = args.dataset
@@ -266,6 +268,14 @@ class Solver(object):
                     #     loss['D/loss_reg_real'] = reg.item()
                     # else:
                     #     d_loss_real.backward()
+                elif self.args.loss_type == "bce":
+                    label = torch.full((self.args.batch_size * self.args.c_dim,), 1).to(self.device)
+                    d_loss_real = self.BCELoss(self.sigmoid(y_real.view(-1)), label)
+                elif self.args.loss_type == "ls":
+                    label = torch.full((self.args.batch_size * self.args.c_dim,), 1).to(self.device)
+                    d_loss_real = 0.5 * torch.mean((y_real.view(-1) - label) ** 2)
+                d_loss_real.backward(retain_graph=True)
+
 
                 # Compute loss with fake images.
                 x_fake = self.G(x_real, x_styles)
@@ -278,19 +288,19 @@ class Solver(object):
                 # d_loss_fm = torch.abs(y_feature - (feature_y1 + feature_y2)/2).mean()
 
                 d_loss_fm = self.compute_triplet_loss(
-                    anchor=feature_fake, negative=feature_real, positive=mean_feature).mean()
+                    anchor=feature_fake, negative=feature_real, positive=mean_feature).mean() * self.lambda_fm
+                d_loss_fm.backward(retain_graph=True)
 
                 if self.args.loss_type == "wgangp":
                     d_loss_fake = y_fake.mean()
-                    d_loss_gp = self.gradient_penalty(x_real, x_fake)
-                    d_loss = d_loss_real + d_loss_fake + self.lambda_gp * d_loss_gp + self.lambda_fm * d_loss_fm
-                    d_loss.backward()
+                    d_loss_fake.backward()
+
+                    d_loss_gp = self.gradient_penalty(x_real, x_fake) * self.lambda_gp
+                    d_loss_gp.backward()
                     loss['D/loss_gp'] = d_loss_gp.item()
                 elif self.args.loss_type == "hinge":
                     d_loss_fake = nn.ReLU()(1.0 + y_fake).mean()
-
-                    d_loss = d_loss_real + d_loss_fake + self.lambda_fm * d_loss_fm
-                    d_loss.backward()
+                    d_loss_fake.backward()
 
                     # if self.reg_type == 'fake' or self.reg_type == 'real_fake':
                     #     d_loss_fake.backward(retain_graph=True)
@@ -299,6 +309,16 @@ class Solver(object):
                     #     loss['D/loss_reg_fake'] = reg.item()
                     # else:
                         # d_loss_fake.backward()
+                
+                elif self.args.loss_type == "bce":
+                    label.fill_(0)
+                    d_loss_fake = self.BCELoss(self.sigmoid(y_fake.view(-1)), label)
+                    d_loss_fake.backward()
+
+                elif self.args.loss_type == "ls":
+                    label.fill_(0)
+                    d_loss_fake = 0.5 * torch.mean((y_fake.view(-1) - label) ** 2)
+                    d_loss_fake.backward()
                 
                 self.d_optimizer.step()
 
@@ -315,7 +335,15 @@ class Solver(object):
                     # Adv Loss
                     x_fake = self.G(x_real, x_styles)
                     y_fake, _ = self.D(x_fake)
-                    g_loss_fake = - y_fake.mean()
+
+                    if self.args.loss_type == "bce":
+                        label.fill_(1)
+                        g_loss_fake = self.BCELoss(self.sigmoid(y_fake.view(-1)), label)
+                    elif self.args.loss_type == "ls":
+                        label.fill_(1)
+                        g_loss_fake = 0.5 * torch.mean((y_fake.view(-1) - label)**2)
+                    else:
+                        g_loss_fake = - y_fake.mean()
 
                     # Rec Loss
                     g_loss_rec = (torch.abs(x_real - x_fake)).mean()

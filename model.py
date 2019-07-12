@@ -243,21 +243,20 @@ class Discriminator(nn.Module):
         #     for _ in range(2):
         #         layers.append(ResidualBlockNoNorm(dim_in=curr_dim, dim_out=curr_dim))
         # layers.append(nn.Conv2d(curr_dim, c_dim, kernel_size=3, stride=1, padding=1))
-
+        layers.append(nn.AvgPool2d(2, 2))
         for _ in range(4):
-            layers.append(nn.AvgPool2d(2, 2))
             layers.append(ResidualBlockNoNorm(dim_in=curr_dim, dim_out=curr_dim*2))
             layers.append(ResidualBlockNoNorm(dim_in=curr_dim*2, dim_out=curr_dim*2))
+            layers.append(nn.AvgPool2d(2, 2))
             curr_dim = curr_dim * 2
 
         layers.append(ResidualBlockNoNorm(dim_in=curr_dim, dim_out=curr_dim))
         layers.append(ResidualBlockNoNorm(dim_in=curr_dim, dim_out=curr_dim))
+        layers.append(nn.AvgPool2d(2, 2))
 
-        self.main = nn.Sequential(*layers)
+        self.main = nn.Sequential(*layers) # -> [4, 1024, 4, 4]
 
         self.last_conv = nn.Conv2d(curr_dim, c_dim, kernel_size=3, stride=1, padding=1)
-
-        
         
     def forward(self, x):
         feature = self.main(x)
@@ -282,12 +281,12 @@ if __name__ == "__main__":
     # print(time() - start)
 
 
-    # # Discriminator
-    # D = Discriminator(conv_dim=64, c_dim=10).cuda()
-    # out = D(z)
-    # print(out.size())
+    # Discriminator
+    D = Discriminator(conv_dim=64, c_dim=10).cuda()
+    out, feature = D(z)
+    print(out.size(), feature.size())
 
-    # Generator
-    G = Generator(conv_dim=64).cuda()
-    y = G(z, styles)
-    print(y.size())
+    # # Generator
+    # G = Generator(conv_dim=64).cuda()
+    # y = G(z, styles)
+    # print(y.size())

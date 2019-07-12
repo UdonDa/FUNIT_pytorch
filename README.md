@@ -9,7 +9,10 @@ Official is here(https://github.com/NVlabs/FUNIT).
 
 # Usage
 + `bash preprosess.sh`
-+ `python main.py`.
++ `pythona main.py --loss_type ls --n_critic 1`
++ `pythona main.py --loss_type bce --n_critic 1`, I fail to learn the models.
++ `pythona main.py --loss_type hinge --n_critic 5`
++ `pythona main.py --loss_type wgangp --n_critic 5`
 
 # Dataset
 I use UECFOOD256(http://foodcam.mobi/dataset256.html), which official paper also use this dataset as Foods.

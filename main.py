@@ -53,9 +53,10 @@ if __name__ == '__main__':
 
     # name = "debug"
     # name = "test"
-    name = "7_12_uecfood256_1"
+    # name = "7_12_uecfood256_1_hinge"
     # name = "7_11_uecfood256_1_n_critic1"
     # name = "7_11_original_1"
+    name = "7_12_uecfood256_BCE"
 
     # Model argsuration.
     # parser.add_argument('--crop_size', type=int, default=286, help='crop size for the RaFD dataset')
@@ -70,8 +71,10 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_rec', type=float, default=0.1, help='weight for reconstruction loss')
     parser.add_argument('--lambda_gp', type=float, default=10., help='weight for gradient penalty')
 
-    parser.add_argument('--loss_type', type=str, default="hinge", help='[hinge, wgangp, normal]')
+    # parser.add_argument('--loss_type', type=str, default="hinge", help='[hinge, wgangp, normal]')
     # parser.add_argument('--loss_type', type=str, default="wgangp", help='[hinge, wgangp]')
+    parser.add_argument('--loss_type', type=str, default="bce", help='[hinge, wgangp, normal]') # Fail
+    # parser.add_argument('--loss_type', type=str, default="ls")
     parser.add_argument('--reg_type', type=str, default="none", help='[real, fake, real_fake]') # https://github.com/LMescheder/GAN_stability/blob/master/gan_training/train.py#L38
     
     # Training argsuration.
