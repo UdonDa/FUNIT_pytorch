@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from time import time
+from torch.nn.utils.spectral_norm as SN
 
 
 
@@ -95,12 +96,12 @@ class ResidualBlockNoNorm(nn.Module):
         dim_middle = min(dim_in, dim_out)
 
         self.main = nn.Sequential(
-            nn.Conv2d(dim_in, dim_middle, kernel_size=3, padding=1),
+            SN(nn.Conv2d(dim_in, dim_middle, kernel_size=3, padding=1)),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(dim_middle, dim_out, kernel_size=3, padding=1)
+            SN(nn.Conv2d(dim_middle, dim_out, kernel_size=3, padding=1))
         )
 
-        self.conv_s = nn.Conv2d(dim_in, dim_out, kernel_size=1, bias=False)
+        self.conv_s = SN(nn.Conv2d(dim_in, dim_out, kernel_size=1, bias=False))
         self.lrelu = nn.LeakyReLU(inplace=True)
 
 
@@ -228,7 +229,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         layers = []
-        layers.append(nn.Conv2d(3, conv_dim, kernel_size=4, stride=2, padding=1)) # Official is maybe 312.
+        layers.append(SN(nn.Conv2d(3, conv_dim, kernel_size=4, stride=2, padding=1))) # Official is maybe 312.
         layers.append(nn.LeakyReLU(inplace=True))
 
         curr_dim = conv_dim
@@ -256,7 +257,7 @@ class Discriminator(nn.Module):
 
         self.main = nn.Sequential(*layers) # -> [4, 1024, 4, 4]
 
-        self.last_conv = nn.Conv2d(curr_dim, c_dim, kernel_size=3, stride=1, padding=1)
+        self.last_conv = SN(nn.Conv2d(curr_dim, c_dim, kernel_size=3, stride=1, padding=1))
         
     def forward(self, x):
         feature = self.main(x)
