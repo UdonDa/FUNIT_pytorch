@@ -28,8 +28,8 @@ Knowledge in Computer Vision (TASK-CV)",
 ```
 
 # Bug
-I can not know some implementation because paper does not show enough information.
-So, please send me pull request.
++ I can not know some implementation because paper does not show enough information. So, please send me pull request.
++ I can not complete to learn the model because output is not clear and seems unchanged....XD
 
 
 # Official
